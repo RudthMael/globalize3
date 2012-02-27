@@ -129,6 +129,94 @@ class MigrationTest < Test::Unit::TestCase
     assert_equal 'Untranslated', untranslated.untranslated_attributes['name']
   end
 
+  # In this test, we are testing the skip_validation feature
+  # Sometimes, we just don't want to validate the existing data
+  # For example: if a further migration adds a new field to the model and requires its
+  # presence for validation.
+  test 'create_translation_table! with option migrate_data set to skip_validation = true existing data' do
+    # Ensure we have a "Fresh" version. Can't use reset_schema because it's not a translated model, yet.
+    model = UntranslatedWithValidation
+    model.drop_translation_table! if model.respond_to?(:drop_translation_table!)
+    model.reset_column_information
+
+    # First create an untranslated record
+    untranslated = model.new(:name => '')
+    untranslated.save!(:validate => false)
+
+    # Now add translation support and migrate (also tests .untranslated_attributes)
+    model.instance_eval %{ translates :name }
+    model.create_translation_table!({:name => :string}, {:migrate_data => {:skip_validation => true}})
+    assert model.translation_class.table_exists?
+
+    # Reload the untranslated record
+    untranslated.reload
+
+    # Was it migrated?
+    assert_translated untranslated, :en, :name, ''
+
+    # Cool, now we need to get rid of the non-translated value for the next test
+    model.update_all({:name => 'No longer translated'}, :id => untranslated.id)
+    untranslated.reload
+
+    # Make sure we didn't harm the translation and that it's been set. (also tests .untranslated_attributes)
+    assert_equal 'No longer translated', untranslated.untranslated_attributes['name']
+    assert_translated untranslated, :en, :name, ''
+
+    # Now we need to rollback then undo
+    model.drop_translation_table! :migrate_data => {:skip_validation => true}
+    model.reset_column_information
+    assert !model.translation_class.table_exists?
+    untranslated.reload
+
+    # Was it restored? (also tests .untranslated_attributes)
+    assert_equal '', untranslated.untranslated_attributes['name']
+  end
+
+  # In this test, we are testing the skip_validation feature
+  # Sometimes, we just don't want to validate the existing data
+  # For example: if a further migration adds a new field to the model and requires its
+  # presence for validation.
+=begin  
+  test 'create_translation_table! with option migrate_data set to skip_validation = FALSE existing data' do
+    # Ensure we have a "Fresh" version. Can't use reset_schema because it's not a translated model, yet.
+    model = UntranslatedWithValidation
+    model.drop_translation_table! if model.respond_to?(:drop_translation_table!)
+    model.reset_column_information
+
+    # First create an untranslated record
+    untranslated = model.new(:name => '')
+    untranslated.save!(:validate => false)
+
+    # Now add translation support and migrate (also tests .untranslated_attributes)
+    model.instance_eval %{ translates :name }
+    model.create_translation_table!({:name => :string}, {:migrate_data => {:skip_validation => false}})
+    assert model.translation_class.table_exists?
+
+    # Reload the untranslated record
+    untranslated.reload
+
+    # Was it migrated?
+    assert_translated untranslated, :en, :name, ''
+
+    # Cool, now we need to get rid of the non-translated value for the next test
+    model.update_all({:name => 'No longer translated'}, :id => untranslated.id)
+    untranslated.reload
+
+    # Make sure we didn't harm the translation and that it's been set. (also tests .untranslated_attributes)
+    assert_equal 'No longer translated', untranslated.untranslated_attributes['name']
+    assert_translated untranslated, :en, :name, ''
+
+    # Now we need to rollback then undo
+    model.drop_translation_table! :migrate_data => {:skip_validation => true}
+    model.reset_column_information
+    assert !model.translation_class.table_exists?
+    untranslated.reload
+
+    # Was it restored? (also tests .untranslated_attributes)
+    assert_equal '', untranslated.untranslated_attributes['name']
+  end
+=end
+
 protected
 
   def reset_schema(*models)

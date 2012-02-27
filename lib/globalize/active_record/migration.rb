@@ -29,7 +29,7 @@ module Globalize
           validate_translated_fields
 
           create_translation_table
-          move_data_to_translation_table if options[:migrate_data]
+          move_data_to_translation_table(options[:migrate_data]) if !!options[:migrate_data]
           remove_source_columns if options[:remove_source_columns]
           create_translations_index
           clear_schema_cache!
@@ -84,14 +84,15 @@ module Globalize
           connection.remove_index(translations_table_name, :name => translation_index_name)
         end
 
-        def move_data_to_translation_table
+        def move_data_to_translation_table(options)
+          skip_validation = options.is_a?(Hash) && !!options[:skip_validation]
           model.find_each do |record|
             untranslated_attributes = record.untranslated_attributes
             translation = record.translations.build(:locale => I18n.default_locale)
             translated_attribute_names.each do |attribute|
               translation[attribute] = untranslated_attributes[attribute.to_s]
             end
-            translation.save!
+            translation.save!(:validate => skip_validation)
           end
         end
 

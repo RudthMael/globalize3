@@ -105,4 +105,10 @@ ActiveRecord::Schema.define do
     t.string     :locale
     t.string     :name
   end
+
+  create_table :untranslated_with_validations, :force => true do |t|
+    t.integer   'untranslated_with_validation_id'
+    t.string    :locale
+    t.string    :name
+  end
 end

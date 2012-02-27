@@ -63,6 +63,12 @@ end
 class Untranslated < ActiveRecord::Base
 end
 
+class UntranslatedWithValidation < ActiveRecord::Base
+  validates_presence_of :name
+end
+
 class Task < ActiveRecord::Base
   translates :name, :fallbacks_for_empty_translations => true
 end
+
+
